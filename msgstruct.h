@@ -1,6 +1,7 @@
 #pragma once
 #include <string.h>
 #include <assert.h>
+#include <string>
 
 // Structures that we use to pass info between threads constructors are here just to make
 // the stack allocation take up less space, heap is a shared resouce that needs locks too of course
@@ -57,17 +58,19 @@ struct ex_event
 	ex_event_name iName;
 	size_t iPoolId;
 
-	union
+	union U
 	{
 		pool_job oPoolJob;
 		job_result oJobResult;
 		std::string sSocketError;
-	};
+		U(){}
+		~U(){}
+	} u;
 
 	ex_event() { iName = EV_INVALID_VAL; iPoolId = 0;}
-	ex_event(std::string&& err, size_t id) : iName(EV_SOCK_ERROR), iPoolId(id), sSocketError(std::move(err)) { }
-	ex_event(job_result dat, size_t id) : iName(EV_MINER_HAVE_RESULT), iPoolId(id), oJobResult(dat) {}
-	ex_event(pool_job dat, size_t id) : iName(EV_POOL_HAVE_JOB), iPoolId(id), oPoolJob(dat) {}
+	ex_event(std::string&& err, size_t id) : iName(EV_SOCK_ERROR), iPoolId(id) { u.sSocketError = std::move(err); }
+	ex_event(job_result dat, size_t id) : iName(EV_MINER_HAVE_RESULT), iPoolId(id) { u.oJobResult = dat; }
+	ex_event(pool_job dat, size_t id) : iName(EV_POOL_HAVE_JOB), iPoolId(id) { u.oPoolJob = dat; }
 	ex_event(ex_event_name ev, size_t id = 0) : iName(ev), iPoolId(id) {}
 
 	// Delete the copy operators to make sure we are moving only what is needed
@@ -82,13 +85,13 @@ struct ex_event
 		switch(iName)
 		{
 		case EV_SOCK_ERROR:
-			new (&sSocketError) std::string(std::move(from.sSocketError));
+			new (&u.sSocketError) std::string(std::move(from.u.sSocketError));
 			break;
 		case EV_MINER_HAVE_RESULT:
-			oJobResult = from.oJobResult;
+			u.oJobResult = from.u.oJobResult;
 			break;
 		case EV_POOL_HAVE_JOB:
-			oPoolJob = from.oPoolJob;
+			u.oPoolJob = from.u.oPoolJob;
 			break;
 		default:
 			break;
@@ -100,7 +103,7 @@ struct ex_event
 		assert(this != &from);
 
 		if(iName == EV_SOCK_ERROR)
-			sSocketError.~basic_string();
+			u.sSocketError.~basic_string();
 
 		iName = from.iName;
 		iPoolId = from.iPoolId;
@@ -108,14 +111,14 @@ struct ex_event
 		switch(iName)
 		{
 		case EV_SOCK_ERROR:
-			new (&sSocketError) std::string();
-			sSocketError = std::move(from.sSocketError);
+			new (&u.sSocketError) std::string();
+			u.sSocketError = std::move(from.u.sSocketError);
 			break;
 		case EV_MINER_HAVE_RESULT:
-			oJobResult = from.oJobResult;
+			u.oJobResult = from.u.oJobResult;
 			break;
 		case EV_POOL_HAVE_JOB:
-			oPoolJob = from.oPoolJob;
+			u.oPoolJob = from.u.oPoolJob;
 			break;
 		default:
 			break;
@@ -127,6 +130,6 @@ struct ex_event
 	~ex_event()
 	{
 		if(iName == EV_SOCK_ERROR)
-			sSocketError.~basic_string();
+			u.sSocketError.~basic_string();
 	}
 };

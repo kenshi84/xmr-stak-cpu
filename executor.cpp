@@ -398,15 +398,15 @@ void executor::ex_main()
 			break;
 
 		case EV_SOCK_ERROR:
-			on_sock_error(ev.iPoolId, std::move(ev.sSocketError));
+			on_sock_error(ev.iPoolId, std::move(ev.u.sSocketError));
 			break;
 
 		case EV_POOL_HAVE_JOB:
-			on_pool_have_job(ev.iPoolId, ev.oPoolJob);
+			on_pool_have_job(ev.iPoolId, ev.u.oPoolJob);
 			break;
 
 		case EV_MINER_HAVE_RESULT:
-			on_miner_result(ev.iPoolId, ev.oJobResult);
+			on_miner_result(ev.iPoolId, ev.u.oJobResult);
 			break;
 
 		case EV_RECONNECT:
